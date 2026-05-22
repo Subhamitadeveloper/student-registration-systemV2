@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Register Final - Production</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 0cm;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    @media print {
+      body {
+        margin: 0 !important;
+      }
+    }
+
+    .page {
+      position: relative;
+      width: 29.7cm;
+      height: 20.2cm;
+      page-break-after: always;
+    }
+
+    .row {
+      position: absolute;
+      height: 0.808cm;
+      font-size: 13.5px;
+    }
+
+    .cell {
+      position: absolute;
+      padding: 0 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      box-sizing: border-box;
+      letter-spacing: -0.2px;
+    }
+
+    .light {
+      background: #f7f7f7;
+    }
+
+    .dark {
+      background: #efefef;
+    }
+
+    .enrol {
+      left: 0.3cm;
+      width: 2.2cm;
+    }
+
+    .dob {
+      left: 2.8cm;
+      width: 2.4cm;
+    }
+
+    .roll {
+      left: 5.6cm;
+      width: 0.9cm;
+    }
+
+    .name {
+      left: 6.7cm;
+      width: 7.3cm;
+      font-weight: bold;
+    }
+
+    .father {
+      left: 14.5cm;
+      width: 4.4cm;
+    }
+
+    .mother {
+      left: 19.4cm;
+      width: 4.9cm;
+    }
+
+    .occ {
+      left: 0.5cm;
+      width: 5.8cm;
+    }
+
+    .office {
+      left: 6.4cm;
+      width: 3cm;
+    }
+
+    .res {
+      left: 9.4cm;
+      width: 3cm;
+    }
+
+    .addr {
+      left: 12.4cm;
+      width: 9.3cm;
+      font-size: 11px;
+    }
+
+    .controls {
+      padding: 10px 12px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: #333;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="controls" id="controls">
+    <span>Class:</span> <select id="class"></select>
+    <span>Section:</span> <select id="section"></select>
+    <button onclick="generate()">Generate</button>
+    <button onclick="downloadPDF()">Download PDF</button>
+    <button onclick="printPage()">Print</button>
+  </div>
+
+  <div id="output"></div>
+
+  <script>
+    const URL = "https://docs.google.com/spreadsheets/d/1l_eqsHGYUuOW5G5cbuinOVljZ6R9zqHJFr3szPzd9pY/gviz/tq?tqx=out:json";
+    let raw = [];
+
+    async function load() {
+      const res = await fetch(URL);
+      const txt = await res.text();
+      const json = JSON.parse(txt.substr(47).slice(0, -2));
+      raw = json.table.rows.map(r => r.c.map(c => c ? (c.f || c.v || "") : ""));
+      const classes = [...new Set(raw.map(r => r[1]))];
+      const c = document.getElementById("class");
+      c.innerHTML = "<option>Select</option>";
+      classes.forEach(v => c.innerHTML += `<option>${v}</option>`);
+      c.onchange = () => {
+        const sec = [...new Set(raw.filter(r => r[1] == c.value).map(r => r[3]))];
+        const s = document.getElementById("section");
+        s.innerHTML = "<option>Select</option>";
+        sec.forEach(v => s.innerHTML += `<option>${v}</option>`);
+      };
+    }
+
+    function cleanName(t) { return t ? t.toUpperCase().trim() : ""; }
+    function smartAddress(addr) { return addr ? addr.toUpperCase().slice(0, 60) : ""; }
+
+    function autoFit() {
+      // Targets both names/addresses and the enrollment numbers
+      document.querySelectorAll(".autofit").forEach(el => {
+        let size = 13.5;
+        // Allows text to shrink down to 8px to fit 12 digits
+        while (el.scrollWidth > el.clientWidth && size > 8) {
+          size -= 0.5;
+          el.style.fontSize = size + "px";
+        }
+      });
+    }
+
+    function generate() {
+      const cls = document.getElementById("class").value;
+      const sec = document.getElementById("section").value;
+      let data = raw.filter(r => r[1] == cls && r[3] == sec).sort((a, b) => Number(a[2]) - Number(b[2]));
+      let html = "";
+
+      for (let i = 0; i < data.length; i += 25) {
+        let chunk = data.slice(i, i + 25);
+        html += `<div class="page">`;
+        chunk.forEach((r, idx) => {
+          let top = (idx * 0.808) + 0.35;
+          html += `
+            <div class="row" style="top:${top}cm">
+              <div class="cell enrol light autofit">${r[0]}</div>
+              <div class="cell dob dark">${r[11]}</div>
+              <div class="cell roll light">${r[2]}</div>
+              <div class="cell name dark">${cleanName(r[4])}</div>
+              <div class="cell father light autofit">${cleanName(r[5])}</div>
+              <div class="cell mother dark autofit">${cleanName(r[9])}</div>
+            </div>`;
+        });
+        html += `</div><div class="page">`;
+        chunk.forEach((r, idx) => {
+          let top = (idx * 0.808) + 0.35;
+          html += `
+            <div class="row" style="top:${top}cm">
+              <div class="cell occ light">${r[8]}</div>
+              <div class="cell office dark"></div>
+              <div class="cell res light">${r[10]}</div>
+              <div class="cell addr dark autofit">${smartAddress(r[12])}</div>
+            </div>`;
+        });
+        html += `</div>`;
+      }
+      document.getElementById("output").innerHTML = html;
+      setTimeout(autoFit, 100);
+    }
+
+    function downloadPDF() {
+      html2pdf().set({
+        margin: 0, filename: 'Register.pdf', image: { type: 'jpeg', quality: 1 },
+        html2canvas: { scale: 4 }, jsPDF: { unit: 'cm', format: [29.7, 21], orientation: 'landscape' }
+      }).from(document.getElementById("output")).save();
+    }
+
+    function printPage() {
+      const controls = document.getElementById("controls");
+      controls.style.display = "none";
+      document.body.offsetHeight;
+      setTimeout(() => { window.print(); setTimeout(() => { controls.style.display = "flex"; }, 300); }, 100);
+    }
+
+    load();
+  </script>
+</body>
+
+</html>
